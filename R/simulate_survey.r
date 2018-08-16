@@ -1,6 +1,8 @@
 # load libs
 library(magick)
 library(pdftools)
+library(abind)
+source("R/function.r")
 
 # kreuze einlesen
 kreuz <- read_kreuze()
@@ -21,7 +23,7 @@ fragen <- fragen_extrahieren(frage_positionen = frage_pos, fragebogen = fragebog
 # ---------------------------------------
 
 # anzahl fragebögen
-N <- 30
+N <- 1000
 
 # anzahl fragen
 n <- length(fragen)
@@ -49,8 +51,8 @@ for(i in 1:n){
     pos_y <- ant_info[ant_info$antw == answ,"antw_pos_y_abs"]-frage_pos[i,"pos_y"] 
     #pos_x <- 820-frage_pos[i,"pos_x"]
     #pos_y <- 1562-frage_pos[i,"pos_y"] 
-    x <- pos_x #+ (2*rbinom(1,1,.5)-1) * sample(0:8,1)
-    y <- pos_y #+ (2*rbinom(1,1,.5)-1) * sample(0:8,1)
+    x <- pos_x + (2*rbinom(1,1,.5)-1) * sample(0:8,1)
+    y <- pos_y + (2*rbinom(1,1,.5)-1) * sample(0:8,1)
     angle <- sample(angles, 1)
     bord_x <- (max(sizes) - sample(sizes,1))/2
     bord_y <- (max(sizes) - sample(sizes,1))/2
@@ -61,6 +63,7 @@ for(i in 1:n){
     
     # random rotation and fixed output size
     img <- image_rotate(img, sample(img_angle,1))
+    if(ant_info$frage == 1) img <- image_rotate(img, 90)
     img <- image_scale(img, "290x")
     img <- image_crop(img, "290x50")
     img <- image_scale(img, "290x50!")
@@ -73,7 +76,7 @@ for(i in 1:n){
     img_num <- strtoi(image_data(img), base = 16)
     dim(img_num) <- c(290, 50)
     
-    print(image(img_num))
+    #print(image(img_num))
     
     # save to container
     MAT[[iter]] <- img_num
@@ -84,9 +87,11 @@ for(i in 1:n){
 
 # combine MAT to array
 # combine to array 
-library(abind)
 ARR <- do.call(abind,c(MAT,list(along=0)))
 rm(MAT)
+saveRDS(ARR, "data/03_simulation_data/simulation1_image_array.rds")
 
-
+# save labels as data.frame
+labels <- data.frame(frage = unlist(QUESTION), label = unlist(LABELS))
+saveRDS(labels, "data/03_simulation_data/simulation1_label_data_frame.rds")
 
