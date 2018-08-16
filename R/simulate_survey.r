@@ -63,7 +63,7 @@ for(i in 1:n){
     
     # random rotation and fixed output size
     img <- image_rotate(img, sample(img_angle,1))
-    if(ant_info$frage == 1) img <- image_rotate(img, 90)
+    if(ant_info$frage[1] == 11) img <- image_rotate(img, 90)
     img <- image_scale(img, "290x")
     img <- image_crop(img, "290x50")
     img <- image_scale(img, "290x50!")
