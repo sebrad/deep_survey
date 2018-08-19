@@ -43,6 +43,7 @@ for(i in 1:n){
   fr <- frage_pos[i,]$frage
   ant_info <- antwort_pos[antwort_pos$frage == fr,]
   answ_samp <- sample(ant_info$antw,N, replace = T)
+  fra <- fragen[[i]]
   for(j in 1:N){
     iter <- iter + 1
     print(paste0(i,":", j))
@@ -59,7 +60,7 @@ for(i in 1:n){
     kl_kreuz <- image_rotate(image_background(kreuz[[sample(1:klen,1)]], "none"), angle)
     kl_kreuz <- image_scale(image_border(image_scale(kl_kreuz, m_size),  "none", 
                                          paste0(bord_x, "x", bord_y)), m_size)
-    img <- image_composite(fragen[[i]], kl_kreuz, offset = paste0("+",x,"+",y)) 
+    img <- image_composite(fra, kl_kreuz, offset = paste0("+",x,"+",y)) 
     
     # random rotation and fixed output size
     img <- image_rotate(img, sample(img_angle,1))

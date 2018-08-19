@@ -1,34 +1,21 @@
 # libs
-library(imager)
-library(data.table)
 library(keras)
 
 # Load Data -----------------------------------------------------
 
-# images
-imgs <- grep(".tiff", list.files("03_trainings_frageboegen/train_1/"), value = T)
-N <- 1000
-MAT <- list()
-for(i in 1:N){
-  print(i)
-  MAT[[i]] <- as.matrix(load.image(paste0("03_trainings_frageboegen/train_1/sample", i,".tiff")))
-}
-
-# combine to array 
-library(abind)
-ARR <- do.call(abind,c(MAT,list(along=0)))
-rm(MAT)
+# load simulation array
+ARR <- readRDS("data/03_simulation_data/simulation1_image_array.rds")/255
 
 # load lables 
-y <- fread("03_trainings_frageboegen/train_1/labels.csv")
-y <- y$fr_y
-y <- y[1:N]
+y_data <- readRDS("data/03_simulation_data/simulation1_label_data_frame.rds")
+y_data$class_int <- as.numeric(y_data$label)-1
+y <- y_data$class_int
 
 # Data Preparation -----------------------------------------------------
 
 batch_size <- 64
-num_classes <- 11
-epochs <- 20
+num_classes <- 40
+epochs <- 50
 
 # Input image dimensions
 img_rows <- dim(ARR)[2]
@@ -61,6 +48,8 @@ yte <- to_categorical(yte, num_classes)
 
 # Define Model -----------------------------------------------------------
 
+gc()
+
 # Define model
 model <- keras_model_sequential() %>%
   layer_conv_2d(filters = 32, kernel_size = c(3,3), activation = 'relu',
@@ -76,15 +65,20 @@ model <- keras_model_sequential() %>%
   layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
   layer_dropout(rate = 0.25) %>% 
   
+  layer_conv_2d(filters = 256, kernel_size = c(3,3), activation = 'relu') %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_dropout(rate = 0.25) %>%
+  
   layer_flatten() %>% 
-  layer_dense(units = 256, activation = 'relu') %>% 
+  layer_dense(units = 512, activation = 'relu') %>% 
   layer_dropout(rate = 0.5) %>% 
+  layer_dense(units = 256, activation = 'relu') %>% 
   layer_dense(units = num_classes, activation = 'softmax')
 
 # Compile model
 model %>% compile(
   loss = 'categorical_crossentropy',
-  optimizer = optimizer_adadelta(),
+  optimizer = optimizer_adagrad(),
   metrics = c('accuracy')
 )
 
@@ -98,7 +92,7 @@ model %>% fit(
 
 
 scores <- model %>% evaluate(
-  xte, yte, verbose = 0
+  xte, yte, verbose = 1
 )
 
 # Output metrics
@@ -106,7 +100,29 @@ cat('Test loss:', scores[[1]], '\n')
 cat('Test accuracy:', scores[[2]], '\n')
 
 
-# SAVE
+# ------------------------------
+# Fehlerhafte Prognosen plotten
+# ------------------------------
+
+y_data_te <- y_data[-tr,]
+y_data_te$preds <- predict_classes(model, xte, verbose = T)
+
+bool_fail <- y_data_te$class_int != y_data_te$preds
+y_fail <- y_data_te[bool_fail,]
+x_fail <- xte[bool_fail,,,,drop = F]
+class_info <- unique(y_data)
+par(mfrow = c(1, 5))
+for(i in 1:dim(x_fail)[1]){
+  fail_pred <- class_info[class_info$class_int == y_fail[i,]$preds & class_info$frage == y_fail[i,]$frage,]$label
+  image(t(x_fail[i,,,]), main = paste0("Pred: ", fail_pred, "\nObs: ", y_fail[i,]$label), col = grey(0:255/255))
+}
+par(mfrow = c(1, 1))
+
+
+
+# ------------------------------
+# Fehlerhafte Prognosen plotten
+# ------------------------------
 save_model_hdf5(model, '04_models/02_model.h5')
 model <- load_model_hdf5('04_models/02_model.h5')
 
